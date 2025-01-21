@@ -3,6 +3,8 @@
  *  SPDX-License-Identifier: Apache-2.0
  */
 
+
+import org.gradle.internal.jvm.Jvm
 import org.opensearch.gradle.test.RestIntegTestTask
 import org.opensearch.gradle.testclusters.OpenSearchCluster
 import org.apache.tools.ant.taskdefs.condition.Os
@@ -167,6 +169,15 @@ ext {
         )
         cluster.setSecure(true)
     }
+    propertyKeys = [
+        breaker: [
+            useRealMemory: 'tests.opensearch.indices.breaker.total.use_real_memory'
+        ]
+    ]
+}
+
+def getBreakerSetting() {
+    return System.getProperty(propertyKeys.breaker.useRealMemory, 'true')
 }
 
 allprojects {
@@ -327,6 +338,11 @@ task cmakeJniLib(type:Exec) {
     args.add("-DAVX512_ENABLED=${avx512_enabled}")
     args.add("-DCOMMIT_LIB_PATCHES=${commit_lib_patches}")
     args.add("-DAPPLY_LIB_PATCHES=${apply_lib_patches}")
+    def javaHome = Jvm.current().getJavaHome()
+    logger.lifecycle("Java home directory used by gradle: $javaHome")
+    if (Os.isFamily(Os.FAMILY_MAC)) {
+        environment('JAVA_HOME',javaHome)
+    }
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn windowsPatches
         args.add("-G")
@@ -334,6 +350,7 @@ task cmakeJniLib(type:Exec) {
         args.add("-DBLAS_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll")
         args.add("-DLAPACK_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll")
     }
+
     commandLine args
 }
 
@@ -399,6 +416,7 @@ integTest {
     if (System.getProperty("test.debug") != null) {
         jvmArgs '-agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=8000'
     }
+    systemProperty propertyKeys.breaker.useRealMemory, getBreakerSetting()
 }
 
 testClusters.integTest {
@@ -428,6 +446,7 @@ testClusters.integTest {
         }
     }
     systemProperty("java.library.path", "$rootDir/jni/release")
+    systemProperty propertyKeys.breaker.useRealMemory, getBreakerSetting()
 }
 
 task integTestRemote(type: RestIntegTestTask) {
