@@ -49,41 +49,11 @@ import org.opensearch.knn.indices.ModelCache;
 import org.opensearch.knn.indices.ModelDao;
 import org.opensearch.knn.indices.ModelGraveyard;
 import org.opensearch.knn.jni.PlatformUtils;
-import org.opensearch.knn.plugin.rest.RestClearCacheHandler;
-import org.opensearch.knn.plugin.rest.RestDeleteModelHandler;
-import org.opensearch.knn.plugin.rest.RestGetModelHandler;
-import org.opensearch.knn.plugin.rest.RestKNNStatsHandler;
-import org.opensearch.knn.plugin.rest.RestKNNWarmupHandler;
-import org.opensearch.knn.plugin.rest.RestSearchModelHandler;
-import org.opensearch.knn.plugin.rest.RestTrainModelHandler;
+import org.opensearch.knn.plugin.rest.*;
 import org.opensearch.knn.plugin.script.KNNScoringScriptEngine;
 import org.opensearch.knn.plugin.search.KNNConcurrentSearchRequestDecider;
 import org.opensearch.knn.plugin.stats.KNNStats;
-import org.opensearch.knn.plugin.transport.ClearCacheAction;
-import org.opensearch.knn.plugin.transport.ClearCacheTransportAction;
-import org.opensearch.knn.plugin.transport.DeleteModelAction;
-import org.opensearch.knn.plugin.transport.DeleteModelTransportAction;
-import org.opensearch.knn.plugin.transport.GetModelAction;
-import org.opensearch.knn.plugin.transport.GetModelTransportAction;
-import org.opensearch.knn.plugin.transport.KNNStatsAction;
-import org.opensearch.knn.plugin.transport.KNNStatsTransportAction;
-import org.opensearch.knn.plugin.transport.KNNWarmupAction;
-import org.opensearch.knn.plugin.transport.KNNWarmupTransportAction;
-import org.opensearch.knn.plugin.transport.RemoveModelFromCacheAction;
-import org.opensearch.knn.plugin.transport.RemoveModelFromCacheTransportAction;
-import org.opensearch.knn.plugin.transport.SearchModelAction;
-import org.opensearch.knn.plugin.transport.SearchModelTransportAction;
-import org.opensearch.knn.plugin.transport.TrainingJobRouteDecisionInfoAction;
-import org.opensearch.knn.plugin.transport.TrainingJobRouteDecisionInfoTransportAction;
-import org.opensearch.knn.plugin.transport.TrainingJobRouterAction;
-import org.opensearch.knn.plugin.transport.TrainingJobRouterTransportAction;
-import org.opensearch.knn.plugin.transport.TrainingModelAction;
-import org.opensearch.knn.plugin.transport.TrainingModelRequest;
-import org.opensearch.knn.plugin.transport.TrainingModelTransportAction;
-import org.opensearch.knn.plugin.transport.UpdateModelGraveyardAction;
-import org.opensearch.knn.plugin.transport.UpdateModelGraveyardTransportAction;
-import org.opensearch.knn.plugin.transport.UpdateModelMetadataAction;
-import org.opensearch.knn.plugin.transport.UpdateModelMetadataTransportAction;
+import org.opensearch.knn.plugin.transport.*;
 import org.opensearch.knn.quantization.models.quantizationState.QuantizationStateCache;
 import org.opensearch.knn.training.TrainingJobClusterStateListener;
 import org.opensearch.knn.training.TrainingJobRunner;
@@ -269,6 +239,7 @@ public class KNNPlugin extends Plugin
     ) {
 
         RestKNNStatsHandler restKNNStatsHandler = new RestKNNStatsHandler();
+        RestKNNProfileHandler restKNNProfileHandler = new RestKNNProfileHandler();
         RestKNNWarmupHandler restKNNWarmupHandler = new RestKNNWarmupHandler(
             settings,
             restController,
@@ -288,7 +259,8 @@ public class KNNPlugin extends Plugin
             restDeleteModelHandler,
             restTrainModelHandler,
             restSearchModelHandler,
-            restClearCacheHandler
+            restClearCacheHandler,
+            restKNNProfileHandler
         );
     }
 
@@ -309,7 +281,8 @@ public class KNNPlugin extends Plugin
             new ActionHandler<>(RemoveModelFromCacheAction.INSTANCE, RemoveModelFromCacheTransportAction.class),
             new ActionHandler<>(SearchModelAction.INSTANCE, SearchModelTransportAction.class),
             new ActionHandler<>(UpdateModelGraveyardAction.INSTANCE, UpdateModelGraveyardTransportAction.class),
-            new ActionHandler<>(ClearCacheAction.INSTANCE, ClearCacheTransportAction.class)
+            new ActionHandler<>(ClearCacheAction.INSTANCE, ClearCacheTransportAction.class),
+            new ActionHandler<>(KNNProfileAction.INSTANCE, KNNProfileTransportAction.class)
         );
     }
 

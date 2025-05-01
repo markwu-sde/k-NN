@@ -32,6 +32,7 @@ import org.opensearch.knn.index.memory.NativeMemoryEntryContext;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
 import org.opensearch.knn.index.engine.KNNEngine;
 import org.opensearch.knn.index.query.SegmentLevelQuantizationUtil;
+import org.opensearch.knn.plugin.transport.KNNIndexShardProfileResult;
 import org.opensearch.knn.profiler.SegmentProfilerState;
 
 import java.io.IOException;
@@ -87,8 +88,9 @@ public class KNNIndexShard {
         return indexShard.shardId().getIndexName();
     }
 
-    public void profile() {
+    public KNNIndexShardProfileResult profile(final String field) {
         try (Engine.Searcher searcher = indexShard.acquireSearcher("knn-warmup")) {
+            //TODO: Add better error logging
 
             List<SegmentProfilerState> segmentLevelProfilerStates = new ArrayList<>();
 
@@ -96,35 +98,14 @@ public class KNNIndexShard {
             //For each leaf, collect the profile
             searcher.getIndexReader().leaves().forEach(leaf -> {
                 try {
-                    segmentLevelProfilerStates.add(SegmentLevelQuantizationUtil.getSegmentProfileState(leaf.reader(), "my_vector_field"));
+                    segmentLevelProfilerStates.add(SegmentLevelQuantizationUtil.getSegmentProfileState(leaf.reader(), field));
                 } catch (IOException e) {
                     //TODO:Better Exception Handling
                     throw new RuntimeException(e);
                 }
             });
 
-            //Aggregate profile per field/dimension for the shard
-            List<StatisticalSummaryValues> shardVectorProfile = new ArrayList<>();
-
-            //TODO: See if there's a better way to get the dimension other than the first element
-            //Transpose our list to aggregate per dimension
-            for (int i = 0; i < segmentLevelProfilerStates.getFirst().getDimension(); i++) {
-                int dimensionId = i;
-                List<SummaryStatistics> transposed = segmentLevelProfilerStates.stream()
-                        .map(state -> state.getStatistics().get(dimensionId))
-                        .toList();
-
-                shardVectorProfile.add(AggregateSummaryStatistics.aggregate(transposed));
-            }
-
-            //TODO: Return this as a API call instead of logging
-            for (StatisticalSummaryValues statisticalSummaryValues : shardVectorProfile) {
-
-                //Use the toString for now
-                log.info(statisticalSummaryValues.toString());
-            }
-
-            //TODO: Write unit tests to ensure that the segment statistic aggregation is correct.
+            return new KNNIndexShardProfileResult(segmentLevelProfilerStates, indexShard.shardId().toString());
         }
     }
 

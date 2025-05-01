@@ -92,10 +92,6 @@ public class KNNWarmupTransportAction extends TransportBroadcastByNodeAction<
 
         knnIndexShard.warmup();
 
-        //TODO: Move this to our own transport action.
-        knnIndexShard.profile();
-
-        //TODO: Move this to another TransportAction and don't use warmup
 
         return EmptyResult.INSTANCE;
     }
