@@ -33,6 +33,7 @@ buildscript {
         // set this to false. In dev environments, set to true. If false, repetitive execution of cmakeJniLib may fail.
         // To prevent this, set build.lib.apply_patches to false after the first cmakeJniLib run.
         commit_lib_patches = System.getProperty("build.lib.commit_patches", "true")
+        nmslib_simd_flags = System.getProperty("nmslib_simd_flags")
 
         version_tokens = opensearch_version.tokenize('-')
         opensearch_build = version_tokens[0] + '.0'
@@ -258,8 +259,8 @@ publishing {
             name = "Snapshots"
             url = "https://central.sonatype.com/repository/maven-snapshots/"
             credentials {
-                username "$System.env.SONATYPE_USERNAME"
-                password "$System.env.SONATYPE_PASSWORD"
+                username System.getenv("SONATYPE_USERNAME")
+                password System.getenv("SONATYPE_PASSWORD")
             }
         }
     }
@@ -340,22 +341,22 @@ dependencies {
     api "org.opensearch:opensearch:${opensearch_version}"
     api project(":remote-index-build-client")
     compileOnly "org.opensearch.plugin:opensearch-scripting-painless-spi:${versions.opensearch}"
-    // TODO migrate this to a dependency to 'transport-grpc-spi' once it is ready, to avoid excluding all these unnecessary dependencies
-    compileOnly("org.opensearch.plugin:transport-grpc:${opensearch_version}") {
-        exclude group: 'com.google.guava', module: 'guava'
-        exclude group: 'com.google.guava', module: 'failureaccess'
+    compileOnly "org.opensearch.plugin:transport-grpc-spi:${opensearch_version}"
+    compileOnly "org.opensearch:protobufs:${versions.opensearchprotobufs}"
+    // Declare guava as compile time since guava will come from OpenSearch transport-grpc module.
+    compileOnly group: 'com.google.guava', name: 'guava', version: "${versions.guava}"
+    compileOnly group: 'com.google.errorprone', name: 'error_prone_annotations', version: "${versions.error_prone_annotations}"
+
+    api "org.apache.commons:commons-lang3:${versions.commonslang}"
+    // We need to remove errorprone from guava since default guava is not bringing 2.26.1 version
+    // where as OpenSearch is using 2.41.0
+    testFixturesImplementation("com.google.guava:guava:${versions.guava}") {
         exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
     }
-    compileOnly "org.opensearch:protobufs:0.6.0"
-    compileOnly group: 'com.google.guava', name: 'failureaccess', version:'1.0.2'
-    compileOnly group: 'com.google.guava', name: 'guava', version:'33.2.1-jre'
-    api "org.apache.commons:commons-lang3:${versions.commonslang}"
+    testFixturesImplementation group: 'com.google.errorprone', name: 'error_prone_annotations', version: "${versions.error_prone_annotations}"
     testFixturesImplementation "org.opensearch.test:framework:${opensearch_version}"
-    // Add Guava for test configurations since it's needed for testing but excluded from runtime
-    testImplementation group: 'com.google.guava', name: 'guava', version:'33.2.1-jre'
-    testFixturesImplementation group: 'com.google.guava', name: 'guava', version:'33.2.1-jre'
     testImplementation group: 'net.bytebuddy', name: 'byte-buddy', version: "${versions.bytebuddy}"
-    testImplementation group: 'org.objenesis', name: 'objenesis', version: '3.3'
+    testImplementation group: 'org.objenesis', name: 'objenesis', version: "${versions.objenesis}"
     testImplementation group: 'net.bytebuddy', name: 'byte-buddy-agent', version: "${versions.bytebuddy}"
     // json-path 2.9.0 depends on slf4j 2.0.11, which conflicts with the version used by OpenSearch core.
     // Excluding slf4j here since json-path is only used for testing, and logging failures in this context are acceptable.
@@ -391,6 +392,9 @@ tasks.register('cmakeJniLib', Exec) {
     }
     if (avx512_spr_enabled != null) {
         args.add("-DAVX512_SPR_ENABLED=${avx512_spr_enabled}")
+    }
+    if (nmslib_simd_flags?.trim()) {
+        args.add("-DNMSLIB_SIMD_FLAGS=${nmslib_simd_flags}")
     }
     args.add("-DCOMMIT_LIB_PATCHES=${commit_lib_patches}")
     args.add("-DAPPLY_LIB_PATCHES=${apply_lib_patches}")
